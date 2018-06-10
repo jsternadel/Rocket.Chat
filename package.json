@@ -116,6 +116,7 @@
 		"@google-cloud/vision": "^0.19.0",
 		"@slack/client": "^4.2.2",
 		"adm-zip": "^0.4.11",
+		"aedes": "^0.35.0",
 		"archiver": "^2.1.1",
 		"atlassian-crowd": "^0.5.0",
 		"autolinker": "^1.6.2",

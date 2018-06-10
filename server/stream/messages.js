@@ -78,5 +78,13 @@ Meteor.startup(function() {
 				}));
 				break;
 		}
+		// console.log(RocketChat.mqtt);
+		RocketChat.mqtt.publish({
+			cmd: 'publish',
+			qos: 1,
+			topic: `/room/${ data.rid }`,
+			payload: Buffer.from(JSON.stringify(data)),
+			retain: false
+		});
 	});
 });

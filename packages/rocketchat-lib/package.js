@@ -75,6 +75,8 @@ Package.onUse(function(api) {
 	api.addFiles('server/lib/bugsnag.js', 'server');
 	api.addFiles('server/lib/metrics.js', 'server');
 
+	api.addFiles('server/lib/mqtt.js', 'server');
+
 	api.addFiles('server/lib/RateLimiter.js', 'server');
 
 	// SERVER FUNCTIONS
