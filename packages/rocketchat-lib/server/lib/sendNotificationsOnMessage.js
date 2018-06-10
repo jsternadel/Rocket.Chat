@@ -174,7 +174,8 @@ function sendAllNotifications(message, room) {
 
 	// Don't fetch all users if room exceeds max members
 	const maxMembersForNotification = RocketChat.settings.get('Notifications_Max_Room_Members');
-	const disableAllMessageNotifications = room.usernames && room.usernames.length > maxMembersForNotification && maxMembersForNotification !== 0;
+	const roomMembersCount = RocketChat.models.Subscriptions.findByRoomId(room._id).count();
+	const disableAllMessageNotifications = roomMembersCount > maxMembersForNotification && maxMembersForNotification !== 0;
 
 	const query = {
 		rid: room._id,
@@ -233,7 +234,7 @@ function sendAllNotifications(message, room) {
 	// on public channels, if a mentioned user is not member of the channel yet, he will first join the channel and then be notified based on his preferences.
 	if (room.t === 'c') {
 		Promise.all(message.mentions
-			.filter(({ _id, username }) => _id !== 'here' && _id !== 'all' && !room.usernames.includes(username))
+			.filter(({ _id }) => _id !== 'here' && _id !== 'all' && !RocketChat.models.Subscriptions.findOneByRoomIdAndUserId(room._id, _id, {fields: {_id: 1}}))
 			.map(async(user) => {
 				await callJoinRoom(user, room._id);
 

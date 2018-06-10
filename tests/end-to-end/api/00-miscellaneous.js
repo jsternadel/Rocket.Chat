@@ -75,7 +75,7 @@ describe('miscellaneous', function() {
 			.expect('Content-Type', 'application/json')
 			.expect(200)
 			.expect((res) => {
-				const allUserPreferencesKeys = ['enableAutoAway', 'idleTimeoutLimit', 'desktopNotificationDuration', 'audioNotifications',
+				const allUserPreferencesKeys = ['enableAutoAway', 'idleTimeLimit', 'desktopNotificationDuration', 'audioNotifications',
 					'desktopNotifications', 'mobileNotifications', 'unreadAlert', 'useEmojis', 'convertAsciiEmoji', 'autoImageLoad',
 					'saveMobileBandwidth', 'collapseMediaByDefault', 'hideUsernames', 'hideRoles', 'hideFlexTab', 'hideAvatars',
 					'roomsListExhibitionMode', 'sidebarViewMode', 'sidebarHideAvatar', 'sidebarShowUnread', 'sidebarShowFavorites',
@@ -169,7 +169,7 @@ describe('miscellaneous', function() {
 					expect(res.body).to.have.property('result').and.to.be.an('array');
 					expect(res.body.result[0]).to.have.property('_id');
 					expect(res.body.result[0]).to.have.property('name');
-					expect(res.body.result[0]).to.have.property('usernames').and.to.be.an('array');
+					expect(res.body.result[0]).to.have.property('usersCount').and.to.be.an('number');
 					expect(res.body.result[0]).to.have.property('ts');
 				})
 				.end(done);
@@ -196,7 +196,7 @@ describe('miscellaneous', function() {
 					expect(res.body).to.have.property('result').and.to.be.an('array');
 					expect(res.body.result[0]).to.have.property('_id');
 					expect(res.body.result[0]).to.have.property('name');
-					expect(res.body.result[0]).to.have.property('usernames').and.to.be.an('array');
+					expect(res.body.result[0]).to.have.property('usersCount').and.to.be.an('number');
 					expect(res.body.result[0]).to.have.property('ts');
 				})
 				.end(done);

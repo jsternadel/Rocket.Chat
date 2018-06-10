@@ -146,22 +146,22 @@ RocketChat.API.v1.addRoute('groups.counters', { authRequired: true }, {
 			}
 			user = params.userId;
 		}
-		const group = RocketChat.models.Subscriptions.findOneByRoomIdAndUserId(room._id, user);
-		lm = group._room.lm ? group._room.lm : group._room._updatedAt;
+		const subscription = RocketChat.models.Subscriptions.findOneByRoomIdAndUserId(room._id, user);
+		lm = room.lm ? room.lm : room._updatedAt;
 
-		if (typeof group !== 'undefined' && group.open) {
-			if (group.ls) {
-				unreads = RocketChat.models.Messages.countVisibleByRoomIdBetweenTimestampsInclusive(group.rid, group.ls, lm);
-				unreadsFrom = group.ls;
+		if (typeof subscription !== 'undefined' && subscription.open) {
+			if (subscription.ls) {
+				unreads = RocketChat.models.Messages.countVisibleByRoomIdBetweenTimestampsInclusive(subscription.rid, subscription.ls, lm);
+				unreadsFrom = subscription.ls;
 			}
-			userMentions = group.userMentions;
+			userMentions = subscription.userMentions;
 			joined = true;
 		}
 
 		if (access || joined) {
 			msgs = room.msgs;
 			latest = lm;
-			members = room.usernames.length;
+			members = room.usersCount;
 		}
 
 		return RocketChat.API.v1.success({
@@ -220,7 +220,7 @@ RocketChat.API.v1.addRoute('groups.delete', { authRequired: true }, {
 		});
 
 		return RocketChat.API.v1.success({
-			group: RocketChat.models.Rooms.processQueryOptionsOnResult([findResult._room], { fields: RocketChat.API.v1.defaultFieldsToExclude })[0]
+			group: RocketChat.models.Rooms.findOneById(findResult.rid, { fields: RocketChat.API.v1.defaultFieldsToExclude })
 		});
 	}
 });
@@ -392,21 +392,17 @@ RocketChat.API.v1.addRoute('groups.leave', { authRequired: true }, {
 RocketChat.API.v1.addRoute('groups.list', { authRequired: true }, {
 	get() {
 		const { offset, count } = this.getPaginationItems();
-		const { sort, fields, query } = this.parseJsonQuery();
-		const ourQuery = Object.assign({}, query, {
-			t: 'p',
-			'u._id': this.userId
-		});
+		const { sort, fields} = this.parseJsonQuery();
 
-		let rooms = _.pluck(RocketChat.models.Subscriptions.find(ourQuery).fetch(), '_room');
-		const totalCount = rooms.length;
-
-		rooms = RocketChat.models.Rooms.processQueryOptionsOnResult(rooms, {
+		// TODO: CACHE: Add Bracking notice since we removed the query param
+		const rooms = RocketChat.models.Rooms.findBySubscriptionTypeAndUserId('p', this.userId, {
 			sort: sort ? sort : { name: 1 },
 			skip: offset,
 			limit: count,
 			fields
-		});
+		}).fetch();
+
+		const totalCount = RocketChat.models.Rooms.findBySubscriptionTypeAndUserId('p', this.userId).count();
 
 		return RocketChat.API.v1.success({
 			groups: rooms,
@@ -449,23 +445,31 @@ RocketChat.API.v1.addRoute('groups.listAll', { authRequired: true }, {
 RocketChat.API.v1.addRoute('groups.members', { authRequired: true }, {
 	get() {
 		const findResult = findPrivateGroupByIdOrName({ params: this.requestParams(), userId: this.userId });
+		const room = RocketChat.models.Rooms.findOneById(findResult.rid, {fields: {broadcast: 1}});
 
-		if (findResult._room.broadcast && !RocketChat.authz.hasPermission(this.userId, 'view-broadcast-member-list')) {
+		if (room.broadcast && !RocketChat.authz.hasPermission(this.userId, 'view-broadcast-member-list')) {
 			return RocketChat.API.v1.unauthorized();
 		}
 
 		const { offset, count } = this.getPaginationItems();
 		const { sort } = this.parseJsonQuery();
 
-		let sortFn = (a, b) => a > b;
-		if (Match.test(sort, Object) && Match.test(sort.username, Number) && sort.username === -1) {
-			sortFn = (a, b) => b < a;
+		let subscriptionSort = {};
+
+		if (!Match.test(sort, Object) || !Match.test(sort.username, Number)) {
+			subscriptionSort = {'u.username': 1};
+		} else {
+			subscriptionSort = {'u.username': sort.username};
 		}
 
-		const members = RocketChat.models.Rooms.processQueryOptionsOnResult(Array.from(findResult._room.usernames).sort(sortFn), {
+		const members = RocketChat.models.Subscriptions.findByRoomId(findResult.rid, {
+			fields: {u: 1},
+			sort: subscriptionSort,
 			skip: offset,
 			limit: count
-		});
+		}).fetch()
+			.filter(s => s.u && s.u._id && s.u.username)
+			.map(s => s.u.username);
 
 		const users = RocketChat.models.Users.find({ username: { $in: members } }, {
 			fields: { _id: 1, username: 1, name: 1, status: 1, utcOffset: 1 },
@@ -476,7 +480,7 @@ RocketChat.API.v1.addRoute('groups.members', { authRequired: true }, {
 			members: users,
 			count: members.length,
 			offset,
-			total: findResult._room.usernames.length
+			total: RocketChat.models.Subscriptions.findByRoomId(findResult.rid).count()
 		});
 	}
 });
@@ -524,7 +528,8 @@ RocketChat.API.v1.addRoute('groups.online', { authRequired: true }, {
 
 		const onlineInRoom = [];
 		online.forEach(user => {
-			if (room.usernames.indexOf(user.username) !== -1) {
+			const subscription = RocketChat.models.Subscriptions.findOneByRoomIdAndUserId(root._id, user._id, {fields: {_id: 1}});
+			if (subscription) {
 				onlineInRoom.push({
 					_id: user._id,
 					username: user.username

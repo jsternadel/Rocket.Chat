@@ -40,10 +40,9 @@ const fields = {
 };
 
 const roomMap = (record) => {
-	if (record._room) {
-		return _.pick(record._room, ...Object.keys(fields));
+	if (record) {
+		return _.pick(record, ...Object.keys(fields));
 	}
-	console.log('Empty Room for Subscription', record);
 	return {};
 };
 
@@ -89,9 +88,11 @@ Meteor.methods({
 			room = RocketChat.models.Rooms.findByTypeAndName(type, name).fetch();
 		}
 
-		if (!room) {
+		if (!room || room.length === 0) {
 			throw new Meteor.Error('error-invalid-room', 'Invalid room', { method: 'getRoomByTypeAndName' });
 		}
+
+		room = room[0];
 
 		if (!Meteor.call('canAccessRoom', room._id, Meteor.userId())) {
 			throw new Meteor.Error('error-no-permission', 'No permission', { method: 'getRoomByTypeAndName' });
@@ -101,24 +102,26 @@ Meteor.methods({
 			delete room.lastMessage;
 		}
 
-		return roomMap({ _room: room });
+		return roomMap(room);
 	}
 });
 
-RocketChat.models.Rooms.cache.on('sync', (type, room/*, diff*/) => {
-	const records = RocketChat.models.Subscriptions.findByRoomId(room._id).fetch();
+RocketChat.models.Rooms.on('change', ({clientAction, id, data}) => {
+	switch (clientAction) {
+		case 'updated':
+		case 'inserted':
+			// Override data cuz we do not publish all fields
+			data = RocketChat.models.Rooms.findOneById(id, { fields });
+			break;
 
-	const _room = roomMap({_room: room});
-	for (const record of records) {
-		RocketChat.Notifications.notifyUserInThisInstance(record.u._id, 'rooms-changed', type, _room);
+		case 'removed':
+			data = { _id: id };
+			break;
 	}
-});
 
-RocketChat.models.Subscriptions.on('changed', (type, subscription/*, diff*/) => {
-	if (type === 'inserted' || type === 'removed') {
-		const room = RocketChat.models.Rooms.findOneById(subscription.rid);
-		if (room) {
-			RocketChat.Notifications.notifyUserInThisInstance(subscription.u._id, 'rooms-changed', type, roomMap({_room: room}));
-		}
+	if (data) {
+		RocketChat.models.Subscriptions.findByRoomId(id, {fields: {'u._id': 1}}).forEach(({u}) => {
+			RocketChat.Notifications.notifyUserInThisInstance(u._id, 'rooms-changed', clientAction, data);
+		});
 	}
 });

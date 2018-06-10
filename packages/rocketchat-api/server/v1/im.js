@@ -1,5 +1,3 @@
-import _ from 'underscore';
-
 function findDirectMessageRoom(params, user) {
 	if ((!params.roomId || !params.roomId.trim()) && (!params.username || !params.username.trim())) {
 		throw new Meteor.Error('error-room-param-not-provided', 'Body param "roomId" or "username" is required');
@@ -86,7 +84,7 @@ RocketChat.API.v1.addRoute(['dm.counters', 'im.counters'], { authRequired: true 
 		if (access || joined) {
 			msgs = room.msgs;
 			latest = lm;
-			members = room.usernames.length;
+			members = room.usersCount;
 		}
 
 		return RocketChat.API.v1.success({
@@ -188,20 +186,22 @@ RocketChat.API.v1.addRoute(['dm.members', 'im.members'], { authRequired: true },
 		const { offset, count } = this.getPaginationItems();
 		const { sort } = this.parseJsonQuery();
 
-		const members = RocketChat.models.Rooms.processQueryOptionsOnResult(Array.from(findResult.room.usernames), {
-			sort: sort ? sort : -1,
+		const members = RocketChat.models.Subscriptions.findByRoomId(findResult._id, {
+			sort: {'u.username':  sort.username != null ? sort.username : 1},
 			skip: offset,
 			limit: count
-		});
+		}).fetch().map(s => s.u && s.u.username);
 
-		const users = RocketChat.models.Users.find({ username: { $in: members } },
-			{ fields: { _id: 1, username: 1, name: 1, status: 1, utcOffset: 1 } }).fetch();
+		const users = RocketChat.models.Users.find({ username: { $in: members } }, {
+			fields: { _id: 1, username: 1, name: 1, status: 1, utcOffset: 1 },
+			sort: {username:  sort.username != null ? sort.username : 1}
+		}).fetch();
 
 		return RocketChat.API.v1.success({
 			members: users,
 			count: members.length,
 			offset,
-			total: findResult.room.usernames.length
+			total: RocketChat.models.Subscriptions.findByRoomId(findResult._id).count()
 		});
 	}
 });
@@ -275,21 +275,17 @@ RocketChat.API.v1.addRoute(['dm.messages.others', 'im.messages.others'], { authR
 RocketChat.API.v1.addRoute(['dm.list', 'im.list'], { authRequired: true }, {
 	get() {
 		const { offset, count } = this.getPaginationItems();
-		const { sort, fields, query } = this.parseJsonQuery();
-		const ourQuery = Object.assign({}, query, {
-			t: 'd',
-			'u._id': this.userId
-		});
+		const { sort, fields } = this.parseJsonQuery();
 
-		let rooms = _.pluck(RocketChat.models.Subscriptions.find(ourQuery).fetch(), '_room');
-		const totalCount = rooms.length;
-
-		rooms = RocketChat.models.Rooms.processQueryOptionsOnResult(rooms, {
+		// TODO: CACHE: Add Bracking notice since we removed the query param
+		const rooms = RocketChat.models.Rooms.findBySubscriptionTypeAndUserId('d', this.userId, {
 			sort: sort ? sort : { name: 1 },
 			skip: offset,
 			limit: count,
 			fields
-		});
+		}).fetch();
+
+		const totalCount = RocketChat.models.Rooms.findBySubscriptionTypeAndUserId('d', this.userId).count();
 
 		return RocketChat.API.v1.success({
 			ims: rooms,
