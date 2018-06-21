@@ -454,6 +454,10 @@ RocketChat.settings.addGroup('Accounts', function() {
 				value: true
 			}
 		});
+		this.add('Accounts_AvatarCacheTime', 3600, {
+			type: 'int',
+			i18nDescription: 'Accounts_AvatarCacheTime_description'
+		});
 
 		return this.add('Accounts_SetDefaultAvatar', true, {
 			type: 'boolean'
@@ -698,6 +702,10 @@ RocketChat.settings.addGroup('General', function() {
 			step: 3,
 			order: 0
 		}
+	});
+	this.add('Document_Domain', '', {
+		type: 'string',
+		'public': true
 	});
 	this.add('Language', '', {
 		type: 'language',
@@ -1709,6 +1717,10 @@ RocketChat.settings.addGroup('Logs', function() {
 		this.add('Prometheus_Enabled', false, {
 			type: 'boolean',
 			i18nLabel: 'Enabled'
+		});
+		this.add('Prometheus_Port', 9100, {
+			type: 'string',
+			i18nLabel: 'Port'
 		});
 	});
 });
