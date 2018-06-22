@@ -75,7 +75,7 @@ Meteor.startup(function() {
 		RocketChat.mqtt.publish({
 			cmd: 'publish',
 			qos: 1,
-			topic: `/room/${ data.rid }`,
+			topic: `${ data.rid }`,
 			payload: Buffer.from(JSON.stringify(data)),
 			retain: false
 		});

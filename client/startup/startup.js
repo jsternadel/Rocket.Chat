@@ -90,10 +90,6 @@ Meteor.startup(function() {
 		const user = RocketChat.models.Users.findOne(Meteor.userId(), {
 			fields: {
 				status: 1,
-<<<<<<< HEAD
-				language: 1,
-=======
->>>>>>> develop
 				'settings.preferences.idleTimeLimit': 1,
 				'settings.preferences.enableAutoAway': 1
 			}

@@ -79,15 +79,6 @@
 	text-overflow: ellipsis;
 }
 
-<<<<<<< HEAD
-.rc-table-td--users {
-	width: 100px;
-=======
-.rc-directory-td--users {
-	width: 80px;
->>>>>>> develop
-}
-
 @media (width <= 700px) {
 	.rc-table-content {
 		& th:not(:first-child),
