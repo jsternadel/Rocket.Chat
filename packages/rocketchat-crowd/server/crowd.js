@@ -82,9 +82,7 @@ const CROWD = class CROWD {
 	}
 
 	syncDataToUser(crowdUser, id) {
-		const self = this;
 		const user = {
-			username: self.cleanUsername(crowdUser.username),
 			crowd_username: crowdUser.username,
 			emails: [{
 				address : crowdUser.email,
@@ -95,11 +93,11 @@ const CROWD = class CROWD {
 		};
 
 		if (crowdUser.password) {
+			// this sets the password so it is encrypted and can be used
+			// if Crowd is offline
 			Accounts.setPassword(id, crowdUser.password, {
 				logout: false
 			});
-
-			RocketChat.models.Users.unsetRequirePasswordChange(id);
 		}
 
 		if (crowdUser.displayname) {
@@ -160,9 +158,12 @@ const CROWD = class CROWD {
 		});
 	}
 
+	// TODO: This should use the built in mechanism for creating usernames (UTF8_Names_Validation)
+	// Crowd will allow emails as usernames which doesn't work very well in Rocket Chat
+	// This mechanism works for a very limited set of use cases
 	cleanUsername(username) {
 		if (RocketChat.settings.get('CROWD_CLEAN_USERNAMES') === true) {
-			return username.split('@')[0];
+			return username.split('@')[0].toLowerCase();
 		}
 		return username;
 	}
@@ -195,6 +196,10 @@ const CROWD = class CROWD {
 
 		// Attempt to create the new user
 		try {
+			// set a username that works with RocketChat
+			crowdUser.username = this.cleanUsername(crowdUser.username);
+
+			// create the user
 			crowdUser._id = Accounts.createUser(crowdUser);
 
 			// sync the user data
